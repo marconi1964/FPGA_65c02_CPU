@@ -32,7 +32,12 @@ entity r65c02_tc is
       button      : IN     STD_LOGIC;  --input signal to be debounced
       result      : OUT    STD_LOGIC;   --debounced signal
       clk_1hz_out : out    STD_LOGIC;
-      clk_1mhz_out : out   STD_LOGIC
+      clk_1mhz_out : out   STD_LOGIC;
+
+      -- added on 20210726
+      sw1_in      : IN     STD_LOGIC;
+      sw2_in      : IN     STD_LOGIC;
+      clock_out   : OUT    STD_LOGIC
 
    );
 
@@ -191,6 +196,15 @@ architecture struct of r65c02_tc is
    for all : clock1mhz use entity r65c02_tc.clock1mhz;
    -- pragma synthesis_on
 
+   -- added on 20210726
+   signal sw1_out, sw1_out_n          : STD_LOGIC;
+   signal sw2_out, sw2_out_n          : STD_LOGIC;
+   signal clk_1hz_enabled, clk_1mhz_enabled   : STD_LOGIC;
+   signal clk_1hz_1mhz                        : STD_LOGIC;
+   signal step_enabled, clk_1hz_1mhz_enabled  : STD_LOGIC;
+   signal clk_1hz_internal, clk_1mhz_internal : STD_LOGIC; 
+   signal debounce_result                     : STD_LOGIC;
+
 
 begin
 
@@ -219,19 +233,50 @@ begin
          clk        => clk,
          reset_n    => reset_n,
          button     => button, 
-         result     => result);
+         result     => debounce_result);             -- modified from result
 
    module1hz : clock1hz
       port map (
          clk        => clk,
          reset_n    => reset_n,
-         clk_1hz_out => clk_1hz_out);
+         clk_1hz_out => clk_1hz_internal);   -- modified from clk_1hz_out
 
    module1mhz : clock1mhz
       port map (
          clk        => clk,
          reset_n    => reset_n,
-         clk_1mhz_out => clk_1mhz_out);
+         clk_1mhz_out => clk_1mhz_internal);  -- modified from clk_1mhz_out
 
+   -- added on 20210726
+
+   moduledebouce_sw1 : debounce
+      port map (
+         clk        => clk,
+         reset_n    => reset_n,
+         button     => sw1_in, 
+         result     => sw1_out);
+
+   moduledebouce_sw2 : debounce
+      port map (
+         clk        => clk,
+         reset_n    => reset_n,
+         button     => sw2_in, 
+         result     => sw2_out);
+
+   result           <= debounce_result;
+   clk_1hz_out      <= clk_1hz_internal;
+   clk_1mhz_out     <= clk_1mhz_internal;
+
+   sw1_out_n        <= not sw1_out;
+
+   sw2_out_n        <= not sw2_out;
+   clk_1hz_enabled  <= sw2_out and clk_1hz_internal;
+   clk_1mhz_enabled <= sw2_out_n and clk_1mhz_internal;
+   clk_1hz_1mhz     <= clk_1hz_enabled or clk_1mhz_enabled;
+
+   step_enabled     <= debounce_result and sw1_out;
+   clk_1hz_1mhz_enabled <= clk_1hz_1mhz and sw1_out_n;
+
+   clock_out        <= step_enabled or clk_1hz_1mhz_enabled;
 
 end struct;

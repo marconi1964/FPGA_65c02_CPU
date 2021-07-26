@@ -204,6 +204,7 @@ architecture struct of r65c02_tc is
    signal step_enabled, clk_1hz_1mhz_enabled  : STD_LOGIC;
    signal clk_1hz_internal, clk_1mhz_internal : STD_LOGIC; 
    signal debounce_result                     : STD_LOGIC;
+   signal clk_clk_in, clock_out_internal        : STD_LOGIC;
 
 
 begin
@@ -211,7 +212,7 @@ begin
    -- Instance port mappings.
    U_0 : core
       port map (
-         clk_clk_i   => clk_clk_i,
+         clk_clk_i   => clk_clk_in,
          d_i         => d_i,
          irq_n_i     => irq_n_i,
          nmi_n_i     => nmi_n_i,
@@ -277,6 +278,9 @@ begin
    step_enabled     <= debounce_result and sw1_out;
    clk_1hz_1mhz_enabled <= clk_1hz_1mhz and sw1_out_n;
 
-   clock_out        <= step_enabled or clk_1hz_1mhz_enabled;
+   clock_out_internal  <= step_enabled or clk_1hz_1mhz_enabled;
+
+   clock_out        <= clock_out_internal;
+   clk_clk_in       <= clock_out_internal;
 
 end struct;

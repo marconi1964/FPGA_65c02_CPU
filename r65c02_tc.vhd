@@ -13,7 +13,9 @@ USE ieee.std_logic_arith.all;
 entity r65c02_tc is
    port( 
       clk_clk_i   : in     std_logic;
-      d_i         : in     std_logic_vector (7 downto 0);
+      -- original d_i         : in     std_logic_vector (7 downto 0);
+      -- replaced by the following 20210803
+      d_i         : inout    std_logic_vector (7 downto 0);
       irq_n_i     : in     std_logic;
       nmi_n_i     : in     std_logic;
       rdy_i       : in     std_logic;
@@ -182,9 +184,21 @@ architecture struct of r65c02_tc is
    port (
       clk          : IN     STD_LOGIC;  --input clock
       reset_n      : IN     STD_LOGIC;  --asynchronous active low reset
-      clk_1mhz_out  : OUT    STD_LOGIC   --debounced signal
+      clk_1mhz_out : OUT    STD_LOGIC   --debounced signal
    );
    end component;
+
+
+   component r65c02_rom_32768words_8bits
+   PORT (
+      address     : IN       STD_LOGIC_VECTOR (14 DOWNTO 0);
+      clock       : IN       STD_LOGIC;
+      rden        : IN       STD_LOGIC;
+      q           : OUT      STD_LOGIC_VECTOR (7 DOWNTO 0)
+   );
+   END component;
+
+
 
    -- Optional embedded configurations
    -- pragma synthesis_off
@@ -194,6 +208,7 @@ architecture struct of r65c02_tc is
    for all : debounce use entity r65c02_tc.bounce;
    for all : clock1hz use entity r65c02_tc.clock1hz;
    for all : clock1mhz use entity r65c02_tc.clock1mhz;
+   for all : r65c02_rom_32768words_8bits use entity r65c02_tc.r65c02_rom_32768words_8bits;
    -- pragma synthesis_on
 
    -- added on 20210726
@@ -204,7 +219,15 @@ architecture struct of r65c02_tc is
    signal step_enabled, clk_1hz_1mhz_enabled  : STD_LOGIC;
    signal clk_1hz_internal, clk_1mhz_internal : STD_LOGIC; 
    signal debounce_result                     : STD_LOGIC;
-   signal clk_clk_in, clock_out_internal        : STD_LOGIC;
+   signal clk_clk_in, clock_out_internal      : STD_LOGIC;
+
+   -- added on 20210803
+   signal clock_rom                           : STD_LOGIC;
+   signal address_bus                         : STD_LOGIC_VECTOR (15 DOWNTO 0);
+   signal rom_address_bus                     : STD_LOGIC_VECTOR (14 DOWNTO 0);
+   signal cpu_d_i                            : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal d_rom_output                        : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal cpu_rd_internal                       : STD_LOGIC;
 
 
 begin
@@ -213,17 +236,17 @@ begin
    U_0 : core
       port map (
          clk_clk_i   => clk_clk_in,
-         d_i         => d_i,
+         d_i         => cpu_d_i,                  -- 20210803 original d_i  => d_i,
          irq_n_i     => irq_n_i,
          nmi_n_i     => nmi_n_i,
          rdy_i       => rdy_i,
          rst_rst_n_i => rst_rst_n_i,
          so_n_i      => so_n_i,
-         a_o         => a_o,
+         a_o         => address_bus,               -- 20210803 original a_o  => a_o,
          d_o         => d_o,
          rd_o        => rd_o,
          sync_o      => sync_o,
-         wr_n_o      => wr_n_o,
+         wr_n_o      => wr_n_o,               
          wr_o        => wr_o
       );
 
@@ -264,6 +287,13 @@ begin
          button     => sw2_in, 
          result     => sw2_out);
 
+   module_rom_20kwords_8bits : r65c02_rom_32768words_8bits
+      port map (
+          address   => rom_address_bus,
+          clock     => clock_rom,
+          rden      => cpu_rd_internal,
+          q         => d_rom_output);
+
    result           <= debounce_result;
    clk_1hz_out      <= clk_1hz_internal;
    clk_1mhz_out     <= clk_1mhz_internal;
@@ -282,5 +312,15 @@ begin
 
    clock_out        <= clock_out_internal;
    clk_clk_in       <= clock_out_internal;
+
+   -- ROM related  added 20210803
+   clock_rom        <= clk;                   -- change to 50MHz clock to ensure the output in time iso  <= clock_out_internal;
+
+   a_o              <= address_bus;
+   rom_address_bus  <= address_bus(14 DOWNTO 0);
+
+   cpu_d_i          <= d_rom_output;
+   d_i              <= d_rom_output;
+   cpu_rd_internal  <= '1';
 
 end struct;

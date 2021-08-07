@@ -225,9 +225,12 @@ architecture struct of r65c02_tc is
    signal clock_rom                           : STD_LOGIC;
    signal address_bus                         : STD_LOGIC_VECTOR (15 DOWNTO 0);
    signal rom_address_bus                     : STD_LOGIC_VECTOR (14 DOWNTO 0);
-   signal cpu_d_i                            : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal cpu_d_i                             : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal rom_ena                             : STD_LOGIC;
    signal d_rom_output                        : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
-   signal cpu_rd_internal                       : STD_LOGIC;
+   signal d_rom_out_buffer                    : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal cpu_rd_internal                     : STD_LOGIC;
+   signal wr_n_o_internal                     : STD_LOGIC;
 
 
 begin
@@ -246,7 +249,7 @@ begin
          d_o         => d_o,
          rd_o        => rd_o,
          sync_o      => sync_o,
-         wr_n_o      => wr_n_o,               
+         wr_n_o      => wr_n_o_internal,               
          wr_o        => wr_o
       );
 
@@ -319,8 +322,13 @@ begin
    a_o              <= address_bus;
    rom_address_bus  <= address_bus(14 DOWNTO 0);
 
-   cpu_d_i          <= d_rom_output;
-   d_i              <= d_rom_output;
+   
+   wr_n_o           <= wr_n_o_internal; 
+   rom_ena          <= address_bus(15) AND address_bus(14) AND wr_n_o_internal;
+
+   d_rom_out_buffer <= d_rom_output WHEN rom_ena = '1' ELSE "ZZZZZZZZ";
+   cpu_d_i          <= d_rom_out_buffer;
+   d_i              <= d_rom_out_buffer;
    cpu_rd_internal  <= '1';
 
 end struct;

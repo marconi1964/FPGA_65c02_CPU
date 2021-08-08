@@ -22,7 +22,7 @@ entity r65c02_tc is
       rst_rst_n_i : in     std_logic;
       so_n_i      : in     std_logic;
       a_o         : out    std_logic_vector (15 downto 0);
-      d_o         : out    std_logic_vector (7 downto 0);
+--      d_o         : out    std_logic_vector (7 downto 0);
       rd_o        : out    std_logic;
       sync_o      : out    std_logic;
       wr_n_o      : out    std_logic;
@@ -32,9 +32,9 @@ entity r65c02_tc is
       clk         : IN     STD_LOGIC;  --input clock
       reset_n     : IN     STD_LOGIC;  --asynchronous active low reset
       button      : IN     STD_LOGIC;  --input signal to be debounced
-      result      : OUT    STD_LOGIC;   --debounced signal
-      clk_1hz_out : out    STD_LOGIC;
-      clk_1mhz_out : out   STD_LOGIC;
+      clk_1_step      : OUT    STD_LOGIC;   --debounced signal
+--      clk_1hz_out : out    STD_LOGIC;
+--      clk_1mhz_out : out   STD_LOGIC;
 
       -- added on 20210726
       sw1_in      : IN     STD_LOGIC;
@@ -163,31 +163,6 @@ architecture struct of r65c02_tc is
    );
    end component;
 
-   component debounce
-   port (
-      clk          : IN     STD_LOGIC;  --input clock
-      reset_n      : IN     STD_LOGIC;  --asynchronous active low reset
-      button       : IN     STD_LOGIC;  --input signal to be debounced
-      result       : OUT    STD_LOGIC   --debounced signal
-   );
-   end component;
-
-   component clock1hz
-   port (
-      clk          : IN     STD_LOGIC;  --input clock
-      reset_n      : IN     STD_LOGIC;  --asynchronous active low reset
-      clk_1hz_out  : OUT    STD_LOGIC   --debounced signal
-   );
-   end component;
-
-   component clock1mhz
-   port (
-      clk          : IN     STD_LOGIC;  --input clock
-      reset_n      : IN     STD_LOGIC;  --asynchronous active low reset
-      clk_1mhz_out : OUT    STD_LOGIC   --debounced signal
-   );
-   end component;
-
 
    component r65c02_rom_32768words_8bits
    PORT (
@@ -198,27 +173,35 @@ architecture struct of r65c02_tc is
    );
    END component;
 
-
+   -- added 2021/08/08 for clock_choices module
+   component clock_choices
+   port( 
+      clk                    : IN     STD_LOGIC;   --input clock
+      reset_n                : IN     STD_LOGIC;   --asynchronous active low reset
+      single_step_button     : IN     STD_LOGIC;
+      single_step_latch      : OUT    STD_LOGIC;   -- debounced signal
+      sw1_in                 : IN     STD_LOGIC;   -- '1' = single step, '0' = clock 
+      sw2_in                 : IN     STD_LOGIC;   -- '1' = 1Hz, '0' = 1MHz
+      clock_out              : OUT    STD_LOGIC    -- clock output to CPU
+   );
+   END component;
 
    -- Optional embedded configurations
    -- pragma synthesis_off
    for all : core use entity r65c02_tc.core;
 
    --- added by Marconi for clock sources
-   for all : debounce use entity r65c02_tc.bounce;
-   for all : clock1hz use entity r65c02_tc.clock1hz;
-   for all : clock1mhz use entity r65c02_tc.clock1mhz;
-   for all : r65c02_rom_32768words_8bits use entity r65c02_tc.r65c02_rom_32768words_8bits;
+   for all : debounce          use entity r65c02_tc.bounce;     -- can be removed once clock_choices module working
+   for all : clock1hz          use entity r65c02_tc.clock1hz;   -- can be removed once clock_choices module working
+   for all : clock1mhz         use entity r65c02_tc.clock1mhz; -- can be removed once clock_choices module working
+   for all : r65c02_rom_32768words_8bits    use entity r65c02_tc.r65c02_rom_32768words_8bits;
+   
+   -- added 2021/08/08 for clock_choices module
+   for all : clock_choices     use entity r65c02_tc.clock_choices;
+
    -- pragma synthesis_on
 
-   -- added on 20210726
-   signal sw1_out, sw1_out_n          : STD_LOGIC;
-   signal sw2_out, sw2_out_n          : STD_LOGIC;
-   signal clk_1hz_enabled, clk_1mhz_enabled   : STD_LOGIC;
-   signal clk_1hz_1mhz                        : STD_LOGIC;
-   signal step_enabled, clk_1hz_1mhz_enabled  : STD_LOGIC;
-   signal clk_1hz_internal, clk_1mhz_internal : STD_LOGIC; 
-   signal debounce_result                     : STD_LOGIC;
+   -- added on 20210726, modified for clock_choices module
    signal clk_clk_in, clock_out_internal      : STD_LOGIC;
 
    -- added on 20210803
@@ -254,43 +237,6 @@ begin
          wr_o        => wr_o_internal
       );
 
-   -- adding modules of debounce, 1Hz, 1MHz by Marconi
-
-   moduledebouce : debounce
-      port map (
-         clk        => clk,
-         reset_n    => reset_n,
-         button     => button, 
-         result     => debounce_result);             -- modified from result
-
-   module1hz : clock1hz
-      port map (
-         clk        => clk,
-         reset_n    => reset_n,
-         clk_1hz_out => clk_1hz_internal);   -- modified from clk_1hz_out
-
-   module1mhz : clock1mhz
-      port map (
-         clk        => clk,
-         reset_n    => reset_n,
-         clk_1mhz_out => clk_1mhz_internal);  -- modified from clk_1mhz_out
-
-   -- added on 20210726
-
-   moduledebouce_sw1 : debounce
-      port map (
-         clk        => clk,
-         reset_n    => reset_n,
-         button     => sw1_in, 
-         result     => sw1_out);
-
-   moduledebouce_sw2 : debounce
-      port map (
-         clk        => clk,
-         reset_n    => reset_n,
-         button     => sw2_in, 
-         result     => sw2_out);
-
    module_rom_20kwords_8bits : r65c02_rom_32768words_8bits
       port map (
           address   => rom_address_bus,
@@ -298,24 +244,22 @@ begin
           rden      => cpu_rd_internal,
           q         => d_rom_output);
 
-   result           <= debounce_result;
-   clk_1hz_out      <= clk_1hz_internal;
-   clk_1mhz_out     <= clk_1mhz_internal;
+   -- added 2021/08/08 for clock_choices module
+   module_clock_choices : clock_choices
+      port map ( 
+          clk       => clk,
+          reset_n   => reset_n,
+          single_step_button   => button,
+          single_step_latch    => clk_1_step,
+          sw1_in    => sw1_in,
+          sw2_in    => sw2_in,
+          clock_out => clock_out_internal
 
-   sw1_out_n        <= not sw1_out;
+   );
 
-   sw2_out_n        <= not sw2_out;
-   clk_1hz_enabled  <= sw2_out and clk_1hz_internal;
-   clk_1mhz_enabled <= sw2_out_n and clk_1mhz_internal;
-   clk_1hz_1mhz     <= clk_1hz_enabled or clk_1mhz_enabled;
 
-   step_enabled     <= debounce_result and sw1_out;
-   clk_1hz_1mhz_enabled <= clk_1hz_1mhz and sw1_out_n;
-
-   clock_out_internal  <= step_enabled or clk_1hz_1mhz_enabled;
-
-   clock_out        <= clock_out_internal;
    clk_clk_in       <= clock_out_internal;
+   clock_out        <= clock_out_internal;
 
    -- ROM related  added 20210803
    clock_rom        <= clk;                   -- change to 50MHz clock to ensure the output in time iso  <= clock_out_internal;

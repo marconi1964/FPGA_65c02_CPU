@@ -228,9 +228,10 @@ architecture struct of r65c02_tc is
    signal cpu_d_i                             : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
    signal rom_ena                             : STD_LOGIC;
    signal d_rom_output                        : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
-   signal d_rom_out_buffer                    : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal cpu_d_o_internal                    : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
+   signal cpu_d_o_buffer                      : STD_LOGIC_VECTOR ( 7 DOWNTO 0);
    signal cpu_rd_internal                     : STD_LOGIC;
-   signal wr_n_o_internal                     : STD_LOGIC;
+   signal wr_n_o_internal, wr_o_internal      : STD_LOGIC;
 
 
 begin
@@ -246,11 +247,11 @@ begin
          rst_rst_n_i => rst_rst_n_i,
          so_n_i      => so_n_i,
          a_o         => address_bus,               -- 20210803 original a_o  => a_o,
-         d_o         => d_o,
+         d_o         => cpu_d_o_internal,
          rd_o        => rd_o,
          sync_o      => sync_o,
          wr_n_o      => wr_n_o_internal,               
-         wr_o        => wr_o
+         wr_o        => wr_o_internal
       );
 
    -- adding modules of debounce, 1Hz, 1MHz by Marconi
@@ -324,11 +325,16 @@ begin
 
    
    wr_n_o           <= wr_n_o_internal; 
+   wr_o             <= wr_o_internal;
    rom_ena          <= address_bus(15) AND address_bus(14) AND wr_n_o_internal;
 
-   d_rom_out_buffer <= d_rom_output WHEN rom_ena = '1' ELSE "ZZZZZZZZ";
-   cpu_d_i          <= d_rom_out_buffer;
-   d_i              <= d_rom_out_buffer;
    cpu_rd_internal  <= '1';
 
+   cpu_d_i          <= cpu_d_o_buffer;
+   d_i              <= cpu_d_o_buffer;
+   cpu_d_o_buffer   <= cpu_d_o_internal    WHEN ( wr_o_internal = '1' ) ELSE
+                       d_rom_output        WHEN ( rom_ena = '1' )       ELSE
+                       "ZZZZZZZZ";
+
+ 
 end struct;

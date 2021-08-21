@@ -186,6 +186,18 @@ architecture struct of r65c02_tc is
    );
    END component;
 
+   -- added 2021/08/21 for single_port_ram
+   component single_port_ram
+   port(
+      data                   : IN     STD_LOGIC_VECTOR(7 downto 0);
+      -- addr                   : IN     STD_LOGIC_VECTOR(14 downto 0);     
+      addr                   : IN     STD_LOGIC_VECTOR(13 downto 0);       -- 12bitsonly
+      we                     : IN     STD_LOGIC := '1';
+      clk                    : IN     STD_LOGIC;
+      q                      : OUT    STD_LOGIC_VECTOR(7 downto 0)
+   );
+   end component;
+
    -- Optional embedded configurations
    -- pragma synthesis_off
    for all : core use entity r65c02_tc.core;
@@ -198,6 +210,9 @@ architecture struct of r65c02_tc is
    
    -- added 2021/08/08 for clock_choices module
    for all : clock_choices     use entity r65c02_tc.clock_choices;
+
+   -- added 2021/08/21 for single_port_ram
+   for all : single_port_ram    use entity r65c02_tc.single_port_ram;     -- can be removed once the module working
 
    -- pragma synthesis_on
 
@@ -216,6 +231,13 @@ architecture struct of r65c02_tc is
    signal cpu_rd_internal                     : STD_LOGIC;
    signal wr_n_o_internal, wr_o_internal      : STD_LOGIC;
 
+   -- added on 2021/08/21 for single_port_ram
+   -- signal ram_addr                            : STD_LOGIC_VECTOR(14 downto 0);
+   signal ram_addr                            : STD_LOGIC_VECTOR(13 downto 0);     -- 12bitsonly
+   signal ram_data_in                         : STD_LOGIC_VECTOR(7 downto 0);
+   signal ram_we                              : STD_LOGIC := '0';
+   signal ram_data_out                        : STD_LOGIC_VECTOR(7 downto 0);
+   signal ram_re                              : STD_LOGIC := '0';
 
 begin
 
@@ -242,7 +264,8 @@ begin
           address   => rom_address_bus,
           clock     => clock_rom,
           rden      => cpu_rd_internal,
-          q         => d_rom_output);
+          q         => d_rom_output
+      );
 
    -- added 2021/08/08 for clock_choices module
    module_clock_choices : clock_choices
@@ -254,8 +277,16 @@ begin
           sw1_in    => sw1_in,
           sw2_in    => sw2_in,
           clock_out => clock_out_internal
+      );
 
-   );
+   module_ram : single_port_ram
+      port map (
+        data        => ram_data_in,
+        addr        => ram_addr,
+        we          => ram_we,
+        clk         => clk,
+        q           => ram_data_out
+      );
 
 
    clk_clk_in       <= clock_out_internal;
@@ -276,9 +307,22 @@ begin
 
    cpu_d_i          <= cpu_d_o_buffer;
    d_i              <= cpu_d_o_buffer;
+
+
+   -- added 2021/08/21 for single_port_ram
+   -- ram_addr         <= address_bus(14 downto 0);     
+   ram_addr         <= address_bus(13 downto 0);                  -- 12bitsonly
+   ram_we           <= wr_o_internal AND NOT(To_X01(address_bus(15)));
+   ram_re           <= wr_n_o_internal AND NOT(To_X01(address_bus(15)));
+
+   -- modified 2021/08/21 to add ram read/write
+
    cpu_d_o_buffer   <= cpu_d_o_internal    WHEN ( wr_o_internal = '1' ) ELSE
                        d_rom_output        WHEN ( rom_ena = '1' )       ELSE
+                       ram_data_out        WHEN ( ram_re = '1' )        ELSE
                        "ZZZZZZZZ";
+
+   ram_data_in      <= cpu_d_o_internal;
 
  
 end struct;

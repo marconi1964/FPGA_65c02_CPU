@@ -191,7 +191,7 @@ architecture struct of r65c02_tc is
    port(
       data                   : IN     STD_LOGIC_VECTOR(7 downto 0);
       -- addr                   : IN     STD_LOGIC_VECTOR(14 downto 0);     
-      addr                   : IN     STD_LOGIC_VECTOR(13 downto 0);       -- 12bitsonly
+      addr                   : IN     STD_LOGIC_VECTOR(13 downto 0);       -- 13bitsonly
       we                     : IN     STD_LOGIC := '1';
       clk                    : IN     STD_LOGIC;
       q                      : OUT    STD_LOGIC_VECTOR(7 downto 0)
@@ -233,7 +233,7 @@ architecture struct of r65c02_tc is
 
    -- added on 2021/08/21 for single_port_ram
    -- signal ram_addr                            : STD_LOGIC_VECTOR(14 downto 0);
-   signal ram_addr                            : STD_LOGIC_VECTOR(13 downto 0);     -- 12bitsonly
+   signal ram_addr                            : STD_LOGIC_VECTOR(13 downto 0);     -- 13bitsonly
    signal ram_data_in                         : STD_LOGIC_VECTOR(7 downto 0);
    signal ram_we                              : STD_LOGIC := '0';
    signal ram_data_out                        : STD_LOGIC_VECTOR(7 downto 0);
@@ -311,7 +311,7 @@ begin
 
    -- added 2021/08/21 for single_port_ram
    -- ram_addr         <= address_bus(14 downto 0);     
-   ram_addr         <= address_bus(13 downto 0);                  -- 12bitsonly
+   ram_addr         <= address_bus(13 downto 0);                  -- 13bitsonly
    ram_we           <= wr_o_internal AND NOT(To_X01(address_bus(15)));
    ram_re           <= wr_n_o_internal AND NOT(To_X01(address_bus(15)));
 

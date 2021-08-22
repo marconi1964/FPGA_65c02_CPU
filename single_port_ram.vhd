@@ -21,7 +21,7 @@ architecture rtl of single_port_ram is
 	-- Build a 2-D array type for the RAM
 	subtype word_t is std_logic_vector(7 downto 0);
 	-- type memory_t is array(32767 downto 0) of word_t;
-	type memory_t is array(16381 downto 0) of word_t;          -- 12bitsonly
+	type memory_t is array(16383 downto 0) of word_t;          -- 12bitsonly
 	
 	-- Declare the RAM signal.
 	signal ram : memory_t;
